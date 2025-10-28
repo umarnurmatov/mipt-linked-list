@@ -45,10 +45,7 @@
 
 #endif // _DEBUG
 
-#define DLLIST_LOGC_ "dllist"
-
 static const dllist_data_t DLLIST_NULL_ = 0;
-static const dllist_data_t DLLIST_BEGIN_ = 1;
 
 static dllist_err_t dllist_realloc_arr_(void** ptr, ssize_t nmemb, size_t tsize);
 
@@ -79,20 +76,15 @@ dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty)
 
     dllist_err_t err = DLLIST_NONE;
 
-    dllist->free =  DLLIST_BEGIN_;
-
-#define MIN_INIT_CPCTY_ 2l
-
-    err = dllist_realloc_(dllist, init_cpcty < MIN_INIT_CPCTY_ ? MIN_INIT_CPCTY_ : init_cpcty);
-
-#undef MIN_INIT_CPCTY_
+    err = dllist_realloc_(dllist, init_cpcty);
 
     DLLIST_VERIFY_OR_RETURN_(dllist, err);
 
+    dllist->free = init_cpcty > DLLIST_NULL_ ? DLLIST_NULL_ + 1 : DLLIST_NULL_;
+
     dllist->next[DLLIST_NULL_] = DLLIST_NULL_;
     dllist->prev[DLLIST_NULL_] = DLLIST_NULL_;
-    
-    dllist->size = 0; 
+    dllist->size               = 0; 
 
     DLLIST_DUMP_(dllist,err);
 
@@ -116,7 +108,7 @@ static dllist_err_t dllist_realloc_arr_(void** ptr, ssize_t nmemb, size_t tsize)
     utils_assert(nmemb > 0);
 
     void* tmp = 
-        (dllist_data_t*) realloc (*ptr, (unsigned) nmemb * tsize);
+        (dllist_data_t*)realloc(*ptr, (unsigned) nmemb * tsize);
 
     if(!tmp) return DLLIST_ALLOC_FAIL;
 
@@ -128,7 +120,7 @@ static dllist_err_t dllist_realloc_arr_(void** ptr, ssize_t nmemb, size_t tsize)
 static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty)
 {
     utils_assert(dllist);
-    utils_assert(nw_cpcty > 0);
+    utils_assert(nw_cpcty > dllist->cpcty);
 
     dllist_err_t err = DLLIST_NONE;
 
@@ -172,28 +164,35 @@ dllist_err_t dllist_insert_after(dllist_t* dllist, dllist_data_t val, ssize_t af
 {
     DLLIST_ASSERT_OK_(dllist);
 
-    dllist_err_t err  = DLLIST_NONE;
+    dllist_err_t err = DLLIST_NONE;
 
     IF_DEBUG(
-        if(after > dllist->size + DLLIST_BEGIN_ - 1) {
+        if(after > dllist->size)
             err = DLLIST_OUT_OF_BOUND;
+
+        else if(after < DLLIST_NULL_)
+            err = DLLIST_OUT_OF_BOUND;
+
+        if(err != DLLIST_NONE) {
             DLLIST_DUMP_(dllist, err);
+            return err;
         }
     )
     
-    ssize_t cur = dllist->free;
-
-    if(cur == DLLIST_NULL_) {
-        // FIXME reallocate
+    if(dllist->free == DLLIST_NULL_) {
+        dllist->free = dllist->cpcty;
+        dllist_realloc_(dllist, dllist->cpcty * 2);
     }
 
-    dllist->data[cur] = val;
-    dllist->free = dllist->next[cur];
+    ssize_t cur = dllist->free;
 
-    dllist->next[cur] = dllist->next[after];
-    dllist->prev[cur] = after;
+    dllist->data[cur] = val;
+    dllist->free      = dllist->next[cur];
+
+    dllist->next[cur]                 = dllist->next[after];
+    dllist->prev[cur]                 = after;
     dllist->prev[dllist->next[after]] = cur;
-    dllist->next[after] = cur;
+    dllist->next[after]               = cur;
 
     ++dllist->size;
 
@@ -207,22 +206,26 @@ dllist_err_t dllist_delete_at(dllist_t* dllist, ssize_t at)
 {
     DLLIST_ASSERT_OK_(dllist);
 
-    dllist_err_t err  = DLLIST_NONE;
+    dllist_err_t err = DLLIST_NONE;
 
     IF_DEBUG(
-        if(at > dllist->size) {
+        if(at > dllist->size)
             err = DLLIST_OUT_OF_BOUND;
+
+        else if(at <= DLLIST_NULL_)
+            err = DLLIST_OUT_OF_BOUND;
+
+        if(err != DLLIST_NONE) {
             DLLIST_DUMP_(dllist, err);
+            return err;
         }
     )
 
     dllist->next[dllist->prev[at]] = dllist->next[at];
     dllist->prev[dllist->next[at]] = dllist->prev[at];
 
-    // adding to list of free
     dllist->next[at] = dllist->free;
-    dllist->free = at;
-
+    dllist->free     = at;
 
     --dllist->size;
 
@@ -320,7 +323,7 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* fil
 
         dllist_dump_graphviz_(dllist, fpref);
 
-        utils_log_fprintf("\n<img src=" IMG_DIR "/%s.svg width=1000em\n", fpref);
+        utils_log_fprintf("\n<img src=" IMG_DIR "/%s.svg width=500em\n", fpref);
 
     } END;
 
@@ -333,7 +336,7 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
     FILE* file = open_file(LOG_DIR "/" GRAPHVIZ_FNAME_ ".txt", "w");
 
     fprintf(file, "digraph {\n rankdir=LR;\nsplines=ortho;\n"); 
-    fprintf(file, "nodesep=0.9;\nranksep=0.75\n"); 
+    fprintf(file, "nodesep=0.9;\nranksep=0.75;\nnode [fontname=\"Fira Mono\"];\n");
 
     fprintf(
         file,
@@ -348,11 +351,12 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
         dllist->next[DLLIST_NULL_]
     );
 
-    for(ssize_t node_ind = DLLIST_BEGIN_; node_ind < dllist->cpcty; ++node_ind) {
+    for(ssize_t node_ind = DLLIST_NULL_ + 1; node_ind < dllist->cpcty; ++node_ind) {
         fprintf(
             file,
-            "node_%ld[shape=record,label=\" "
-            "data: %d | { prev: %ld | next: %ld } \"];\n",  
+            "node_%ld[shape=record,"
+            "label=\" data: %d | { prev: %ld | next: %ld } \","
+            "constraint=false];\n",  
             node_ind,
             dllist->data[node_ind],
             dllist->prev[node_ind],
@@ -371,7 +375,7 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
     
     ssize_t prev_ind = dllist->free;
     ssize_t cur_ind = dllist->next[prev_ind];
-    for( ; cur_ind != DLLIST_NULL_; cur_ind = dllist->next[prev_ind]) {
+    for( ; prev_ind != DLLIST_NULL_; cur_ind = dllist->next[prev_ind]) {
         fprintf(
             file,
             "node_%ld -> node_%ld [color=" CLR_BLUE_BOLD_ "];\n",
