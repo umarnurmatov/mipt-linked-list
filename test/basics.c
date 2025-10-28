@@ -1,5 +1,4 @@
 #include "dllist.h"
-#include "logutils.h"
 
 int main()
 {

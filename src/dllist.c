@@ -11,8 +11,8 @@
 
 #ifdef _DEBUG
 
-#define DLLIST_LOG_FILENAME_ "logfile.htm"
-#define IMG_FNAME_PREF_LEN_ 10
+#define DLLIST_LOG_FILENAME_ "logfile.html"
+#define GRAPHVIZ_IMG_FNAME_PREF_LEN_ 10
 
 #define DLLIST_DUMP_(dllist, err) \
     dllist_dump_(dllist, err, NULL, __FILE__, __LINE__, __func__); 
@@ -59,9 +59,9 @@ static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty);
 
 static dllist_err_t dllist_verify_(dllist_t* dllist);
 
-void dllist_dump_graphviz_(dllist_t* dllist, char fpref[IMG_FNAME_PREF_LEN_]);
+void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_LEN_]);
 
-void dllist_dump_(dllist_t* dllist, dllist_err_t err, const char* msg, const char* filename, int line, const char* funcname);
+void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* filename, int line, const char* funcname);
 
 static const char* dllist_strerr_(dllist_err_t err);
 
@@ -79,6 +79,8 @@ dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty)
 
     dllist_err_t err = DLLIST_NONE;
 
+    dllist->free =  DLLIST_BEGIN_;
+
 #define MIN_INIT_CPCTY_ 2l
 
     err = dllist_realloc_(dllist, init_cpcty < MIN_INIT_CPCTY_ ? MIN_INIT_CPCTY_ : init_cpcty);
@@ -87,9 +89,8 @@ dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty)
 
     DLLIST_VERIFY_OR_RETURN_(dllist, err);
 
-    dllist->head_ind = DLLIST_NULL_;
-    dllist->free_ind = DLLIST_BEGIN_;
-    dllist->tail_ind = DLLIST_NULL_;
+    dllist->next[DLLIST_NULL_] = DLLIST_NULL_;
+    dllist->prev[DLLIST_NULL_] = DLLIST_NULL_;
     
     dllist->size = 0; 
 
@@ -100,6 +101,8 @@ dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty)
 
 void dllist_dtor(dllist_t* dllist)
 {
+    utils_assert(dllist);
+
     NFREE(dllist->data);
     NFREE(dllist->next);
     NFREE(dllist->prev);
@@ -177,39 +180,20 @@ dllist_err_t dllist_insert_after(dllist_t* dllist, dllist_data_t val, ssize_t af
             DLLIST_DUMP_(dllist, err);
         }
     )
-
-    ssize_t cur = dllist->free_ind;
-    dllist->data[cur] = val;
-    dllist->free_ind = dllist->next[cur];
     
-    if(after == DLLIST_NULL_) {
-        dllist->next[cur] = dllist->head_ind;
-        dllist->prev[cur] = DLLIST_NULL_;
+    ssize_t cur = dllist->free;
 
-        dllist->head_ind = cur;
-
-        if(dllist->size == 0)
-            dllist->tail_ind = cur;
-        else
-            dllist->prev[dllist->next[cur]] = cur;
+    if(cur == DLLIST_NULL_) {
+        // FIXME reallocate
     }
 
-    else if(after == dllist->tail_ind) {
-        dllist->next[cur] = DLLIST_NULL_;
-        dllist->prev[cur] = after;
-        dllist->next[after] = cur;
+    dllist->data[cur] = val;
+    dllist->free = dllist->next[cur];
 
-        dllist->tail_ind = cur;
-    }
-
-    else {
-        dllist->next[cur] = dllist->next[after];
-        dllist->prev[cur] = after;
-
-        dllist->prev[dllist->next[after]] = cur;
-
-        dllist->next[after] = cur;
-    }
+    dllist->next[cur] = dllist->next[after];
+    dllist->prev[cur] = after;
+    dllist->prev[dllist->next[after]] = cur;
+    dllist->next[after] = cur;
 
     ++dllist->size;
 
@@ -232,23 +216,12 @@ dllist_err_t dllist_delete_at(dllist_t* dllist, ssize_t at)
         }
     )
 
-    if(at == dllist->head_ind) {
-        dllist->head_ind = dllist->next[at];
-        dllist->prev[dllist->next[at]] = DLLIST_NULL_;
-    }
-
-    else if(at == dllist->tail_ind) {
-        dllist->tail_ind = dllist->prev[at];
-        dllist->next[dllist->prev[at]] = DLLIST_NULL_;
-    }
-    else {
-        dllist->next[dllist->prev[at]] = dllist->next[at];
-        dllist->prev[dllist->next[at]] = dllist->prev[at];
-    }
+    dllist->next[dllist->prev[at]] = dllist->next[at];
+    dllist->prev[dllist->next[at]] = dllist->prev[at];
 
     // adding to list of free
-    dllist->next[at] = dllist->free_ind;
-    dllist->free_ind = at;
+    dllist->next[at] = dllist->free;
+    dllist->free = at;
 
 
     --dllist->size;
@@ -278,23 +251,33 @@ ssize_t dllist_begin(dllist_t* dllist)
 {
     DLLIST_ASSERT_OK_(dllist);
 
-    return dllist->head_ind;
+    return dllist->next[DLLIST_NULL_];
+}
+
+ssize_t dllist_end(dllist_t* dllist)
+{
+    DLLIST_ASSERT_OK_(dllist);
+
+    return dllist->prev[DLLIST_NULL_];
 }
 
 
 #ifdef _DEBUG
 
-#define FNAME_ "graphviz"
-#define CMD_LEN_ 100
+#define GRAPHVIZ_FNAME_ "graphviz"
+#define GRAPHVIZ_CMD_LEN_ 100
 
+#define CLR_RED_LIGHT_   "\"#FFB0B0\""
 #define CLR_GREEN_LIGHT_ "\"#B0FFB0\""
 #define CLR_BLUE_LIGHT_  "\"#B0B0FF\""
+
+#define CLR_RED_BOLD_    "\"#FF0000\""
 #define CLR_GREEN_BOLD_  "\"#00FF00\""
 #define CLR_BLUE_BOLD_   "\"#0000FF\""
 
-void dllist_dump_(dllist_t* dllist, dllist_err_t err, const char* msg, const char* filename, int line, const char* funcname)
+void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* filename, int line, const char* funcname)
 {
-    static char fpref[IMG_FNAME_PREF_LEN_] = "";
+    static char fpref[GRAPHVIZ_IMG_FNAME_PREF_LEN_] = "";
     static unsigned int fpref_cnt = 0;
 
     utils_log_fprintf("<pre>\n"); 
@@ -314,20 +297,30 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, const char* msg, const cha
 
         utils_log_fprintf("capacity: %ld\n", dllist->cpcty);
 
-        utils_log_fprintf("size: %ld\n", dllist->size);
+        utils_log_fprintf("size: %ld", dllist->size);
 
         if(err == DLLIST_FIELD_NULLPTR)
             GOTO_END;
         
-        utils_log_fprintf("data[%p]:\n  ", dllist->data);
+        utils_log_fprintf("\ndata[%p]:  ", dllist->data);
         for(ssize_t i = 0; i < dllist->cpcty; ++i)
-            utils_log_fprintf("%d ", dllist->data[i]);
+            utils_log_fprintf("%5d ", dllist->data[i]);
+
+        utils_log_fprintf("\nnext[%p]:  ", dllist->next);
+        for(ssize_t i = 0; i < dllist->cpcty; ++i)
+            utils_log_fprintf("%5ld ", dllist->next[i]);
+
+        utils_log_fprintf("\nprev[%p]:  ", dllist->prev);
+        for(ssize_t i = 0; i < dllist->cpcty; ++i)
+            utils_log_fprintf("%5ld ", dllist->prev[i]);
+
+        utils_log_fprintf("\n");
 
         sprintf(fpref, "%u", fpref_cnt++);
 
         dllist_dump_graphviz_(dllist, fpref);
 
-        utils_log_fprintf("\n<img src=" IMG_DIR "/%s.png width=1000em\n", fpref);
+        utils_log_fprintf("\n<img src=" IMG_DIR "/%s.svg width=1000em\n", fpref);
 
     } END;
 
@@ -335,14 +328,27 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, const char* msg, const cha
 
 }
 
-void dllist_dump_graphviz_(dllist_t* dllist, char fpref[IMG_FNAME_PREF_LEN_])
+void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_LEN_])
 {
-    FILE* file = open_file(LOG_DIR "/" FNAME_ ".txt", "w");
+    FILE* file = open_file(LOG_DIR "/" GRAPHVIZ_FNAME_ ".txt", "w");
 
     fprintf(file, "digraph {\n rankdir=LR;\nsplines=ortho;\n"); 
-    fprintf(file, "nodesep=1;\nranksep=0.75\n"); 
+    fprintf(file, "nodesep=0.9;\nranksep=0.75\n"); 
 
-    for(ssize_t node_ind = 0; node_ind < dllist->cpcty; ++node_ind) {
+    fprintf(
+        file,
+        "node_%d[shape=record,"
+        "label=\"data: %d | { prev: %ld | next: %ld } \","
+        "color=" CLR_RED_BOLD_ ","
+        "style=\"filled,bold,rounded\","
+        "fillcolor=" CLR_RED_LIGHT_ "];\n",
+        DLLIST_NULL_,
+        dllist->data[DLLIST_NULL_],
+        dllist->prev[DLLIST_NULL_],
+        dllist->next[DLLIST_NULL_]
+    );
+
+    for(ssize_t node_ind = DLLIST_BEGIN_; node_ind < dllist->cpcty; ++node_ind) {
         fprintf(
             file,
             "node_%ld[shape=record,label=\" "
@@ -363,9 +369,9 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[IMG_FNAME_PREF_LEN_])
         );
     }
     
-    ssize_t prev_ind = dllist->free_ind;
+    ssize_t prev_ind = dllist->free;
     ssize_t cur_ind = dllist->next[prev_ind];
-    for( ; prev_ind != DLLIST_NULL_; cur_ind = dllist->next[prev_ind]) {
+    for( ; cur_ind != DLLIST_NULL_; cur_ind = dllist->next[prev_ind]) {
         fprintf(
             file,
             "node_%ld -> node_%ld [color=" CLR_BLUE_BOLD_ "];\n",
@@ -375,55 +381,51 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[IMG_FNAME_PREF_LEN_])
         prev_ind = cur_ind;
     }
 
-    prev_ind = dllist->head_ind;
-    cur_ind = dllist->next[prev_ind];
-    for( ; prev_ind != dllist->tail_ind; cur_ind = dllist->next[prev_ind]) {
-        fprintf(
-            file,
-            "node_%ld -> node_%ld [];\n",
-            prev_ind,
-            cur_ind
-        );
+    prev_ind = DLLIST_NULL_;
+    cur_ind = dllist_begin(dllist);
+    do {
+        if(prev_ind == DLLIST_NULL_ || cur_ind == DLLIST_NULL_)
+            fprintf(
+                file,
+                "node_%ld -> node_%ld [color=" CLR_RED_BOLD_ "];\n",
+                prev_ind,
+                cur_ind
+            );
+        else
+            fprintf(
+                file,
+                "node_%ld -> node_%ld [];\n",
+                prev_ind,
+                cur_ind
+            );
         prev_ind = cur_ind;
-    }
+        cur_ind = dllist->next[prev_ind];
+    } while(prev_ind != DLLIST_NULL_);
 
     fprintf(
         file,
-        "node_head [label=head];"
-        "node_head -> node_%ld;\n",
-        dllist->head_ind
-    );
-
-    fprintf(
-        file,
-        "node_tail [label=tail];"
-        "node_tail -> node_%ld;\n",
-        dllist->tail_ind
-    );
-
-    fprintf(
-        file,
-        "node_free [label=free, color=" CLR_BLUE_BOLD_ ","
-        "fillcolor=" CLR_BLUE_LIGHT_ "];"
+        "node_free [label=free,color=" CLR_BLUE_BOLD_ ","
+        "shape=rectangle,"
+        "style=\"filled,rounded\","
+        "fillcolor=" CLR_BLUE_LIGHT_ "];\n"
         "node_free -> node_%ld [color=" CLR_BLUE_BOLD_ "]\n",
-        dllist->free_ind
+        dllist->free
     );
 
     fprintf(file, "}\n");
 
     fclose(file);
 
-    static char strbuf[CMD_LEN_ + IMG_FNAME_PREF_LEN_]= "";
+    static char strbuf[GRAPHVIZ_CMD_LEN_ + GRAPHVIZ_IMG_FNAME_PREF_LEN_]= "";
 
-    sprintf(strbuf, "dot -T png -o" LOG_DIR "/" IMG_DIR "/%s.png " LOG_DIR "/" FNAME_ ".txt", fpref);
+    sprintf(
+        strbuf, 
+        "dot -T svg -o" LOG_DIR "/" IMG_DIR "/%s.svg " LOG_DIR "/" GRAPHVIZ_FNAME_ ".txt", fpref
+    );
 
     system(strbuf);
 
 }
-
-#undef FILENAME_PREF_LEN_
-#undef CMD_LEN_
-#undef FNAME_
 
 static dllist_err_t dllist_verify_(dllist_t* dllist)
 {

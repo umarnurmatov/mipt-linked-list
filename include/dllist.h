@@ -17,9 +17,7 @@
         .data     = NULL,    \
         .next     = NULL,    \
         .prev     = NULL,    \
-        .head_ind = 0,       \
-        .tail_ind = 0,       \
-        .free_ind = 0,       \
+        .free     = 0,       \
         .cpcty    = 0,       \
         .size     = 0        \
     }
@@ -42,9 +40,7 @@ typedef struct dllist_t
     ssize_t* next;
     ssize_t* prev;
 
-    ssize_t head_ind;
-    ssize_t tail_ind;
-    ssize_t free_ind;
+    ssize_t free;
 
     ssize_t cpcty;
     ssize_t size;
@@ -64,4 +60,6 @@ ssize_t dllist_next(dllist_t* dllist, ssize_t after);
 ssize_t dllist_prev(dllist_t* dllist, ssize_t before);
 
 ssize_t dllist_begin(dllist_t* dllist);
+
+ssize_t dllist_end(dllist_t* dllist);
 
