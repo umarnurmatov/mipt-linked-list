@@ -187,7 +187,8 @@ dllist_err_t dllist_insert_after(dllist_t* dllist, dllist_data_t val, ssize_t af
     
     if(dllist->free == DLLIST_NULL_) {
         dllist->free = dllist->cpcty;
-        dllist_realloc_(dllist, dllist->cpcty * 2);
+        err = dllist_realloc_(dllist, dllist->cpcty * 2);
+        DLLIST_VERIFY_OR_RETURN_(dllist, err);
     }
 
     ssize_t cur = dllist->free;
