@@ -237,7 +237,20 @@ dllist_err_t dllist_delete_at(dllist_t* dllist, ssize_t at)
 ssize_t dllist_next(dllist_t* dllist, ssize_t after)
 {
     DLLIST_ASSERT_OK_(dllist);
-    utils_assert(after >= 0);
+
+    IF_DEBUG(
+        dllist_err_t err = DLLIST_NONE; 
+
+        if(after < 0)
+            err = DLLIST_OUT_OF_BOUND;
+        else if(after >= dllist->size)
+            err = DLLIST_OUT_OF_BOUND;
+
+        if(err != DLLIST_NULL_) {
+            DLLIST_DUMP_(dllist, err);
+            return err;
+        }
+    );
 
     return dllist->next[after];
 }
@@ -245,7 +258,20 @@ ssize_t dllist_next(dllist_t* dllist, ssize_t after)
 ssize_t dllist_prev(dllist_t* dllist, ssize_t before)
 {
     DLLIST_ASSERT_OK_(dllist);
-    utils_assert(before > 0);
+
+    IF_DEBUG(
+        dllist_err_t err = DLLIST_NONE; 
+
+        if(before <= 0)
+            err = DLLIST_OUT_OF_BOUND;
+        else if(before > dllist->size)
+            err = DLLIST_OUT_OF_BOUND;
+
+        if(err != DLLIST_NULL_) {
+            DLLIST_DUMP_(dllist, err);
+            return err;
+        }
+    );
 
     return dllist->prev[before];
 }
