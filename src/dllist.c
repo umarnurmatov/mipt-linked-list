@@ -130,9 +130,12 @@ static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty)
         sizeof(dllist->data[0])
     );
     DLLIST_VERIFY_OR_RETURN_(dllist, err);
-
-    for(ssize_t i = dllist->cpcty; i < nw_cpcty; ++i)
-        dllist->data[i] = 0;
+    
+    memset(
+        dllist->data + dllist->cpcty, 
+        0, 
+        sizeof(dllist->data[0]) * (size_t)(nw_cpcty - dllist->cpcty)
+    );
 
     err = dllist_realloc_arr_(
         (void**)&dllist->next, 
@@ -151,9 +154,12 @@ static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty)
         sizeof(dllist->prev[0])
     );
     DLLIST_VERIFY_OR_RETURN_(dllist, err);
-
-    for(ssize_t i = dllist->cpcty; i < nw_cpcty; ++i)
-        dllist->prev[i] = 0;
+    
+    memset(
+        dllist->prev + dllist->cpcty, 
+        0, 
+        sizeof(dllist->prev[0]) * (size_t)(nw_cpcty - dllist->cpcty)
+    );
 
     dllist->cpcty = nw_cpcty;
 
