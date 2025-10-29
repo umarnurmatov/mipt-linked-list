@@ -98,6 +98,9 @@ void dllist_dtor(dllist_t* dllist)
     NFREE(dllist->data);
     NFREE(dllist->next);
     NFREE(dllist->prev);
+    
+    dllist->size = 0;
+    dllist->free = 0;
 
     utils_end_log();
 }
