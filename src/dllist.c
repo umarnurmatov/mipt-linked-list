@@ -47,6 +47,8 @@
 
 static const dllist_data_t DLLIST_NULL_ = 0;
 
+static const ssize_t DLLIST_CPCTY_THREASHOLD_ = 16;
+
 static dllist_err_t dllist_realloc_arr_(void** ptr, ssize_t nmemb, size_t tsize);
 
 static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty);
@@ -76,11 +78,15 @@ dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty)
 
     dllist_err_t err = DLLIST_NONE;
 
-    err = dllist_realloc_(dllist, init_cpcty);
+    ssize_t init_cpcty_vld = 
+        init_cpcty < DLLIST_CPCTY_THREASHOLD_ 
+        ? DLLIST_CPCTY_THREASHOLD_ 
+        : init_cpcty;
 
+    err = dllist_realloc_(dllist, init_cpcty_vld);
     DLLIST_VERIFY_OR_RETURN_(dllist, err);
-
-    dllist->free = init_cpcty > DLLIST_NULL_ ? DLLIST_NULL_ + 1 : DLLIST_NULL_;
+    
+    dllist->free = DLLIST_NULL_ + 1;
 
     dllist->next[DLLIST_NULL_] = DLLIST_NULL_;
     dllist->prev[DLLIST_NULL_] = DLLIST_NULL_;
