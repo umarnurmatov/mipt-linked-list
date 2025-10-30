@@ -73,13 +73,13 @@ static const char* dllist_strerr_(dllist_err_t err);
 #endif // _DEBUG
 
 
-dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty)
+dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty, const char* log_filename)
 {
     utils_assert(dllist);
     utils_assert(init_cpcty > 0);
 
     IF_DEBUG(
-        utils_init_log_file(DLLIST_LOG_FILENAME_, LOG_DIR);
+        utils_init_log_file(log_filename, LOG_DIR);
     )
 
     dllist_err_t err = DLLIST_NONE;
@@ -431,12 +431,17 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
             fprintf(
                 file,
                 "node_%ld[shape=record,"
-                "label=\" ind: %ld | data: %d | { prev: %ld | next: %ld } \","
+                "label=\" ind: %ld %s | data: %d | { prev: %ld | next: %ld } \","
                 "color=black,"
                 "fillcolor=white,"
                 "constraint=false];\n",  
                 node_ind,
                 node_ind,
+                node_ind == dllist->next[DLLIST_NULL_] 
+                    ? "(BEGIN)" 
+                    : node_ind == dllist->prev[DLLIST_NULL_] 
+                        ? "(END)" 
+                        : "",
                 dllist->data[node_ind],
                 dllist->prev[node_ind],
                 dllist->next[node_ind]
@@ -480,7 +485,7 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
         else {
             fprintf(
                 file, 
-                "node_%ld -> node_%ld [color=" CLR_RED_BOLD_ "];\n", 
+                "node_%ld -> node_%ld [style=\"bold\",color=" CLR_RED_BOLD_ "];\n", 
                 ind, dllist->next[ind]
             );
         }
@@ -502,7 +507,7 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
         else {
             fprintf(
                 file, 
-                "node_%ld -> node_%ld [color=" CLR_RED_BOLD_ "];\n", 
+                "node_%ld -> node_%ld [style=\"bold\",color=" CLR_RED_BOLD_ "];\n", 
                 dllist->prev[ind], ind
             );
         }

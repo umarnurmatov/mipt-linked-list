@@ -44,7 +44,7 @@ TEST_EXECS := $(patsubst %.c,$(BUILD_DIR)/%.test,$(TEST_SOURCES))
 
 prefix := "\#\#\#\#\#\# [TEST]"
 test: $(TEST_EXECS)
-	@$(foreach exec,$(TEST_EXECS),echo "$(prefix) Running $(notdir $(exec))..."; ./$(exec); echo -e "$(prefix) Finished $(notdir $(exec))\n";)
+	$(foreach exec,$(TEST_EXECS),echo "$(prefix) Running $(notdir $(exec))..."; ./$(exec) --log=$(patsubst %.test,%.html,$(notdir $(exec))); echo -e "$(prefix) Finished $(notdir $(exec))\n";)
 
 $(BUILD_DIR)/%.test: $(TEST_DIR)/%.c $(OBJS)
 	@echo -n Building test $@...

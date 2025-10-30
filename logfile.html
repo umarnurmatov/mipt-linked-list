@@ -1,0 +1,51 @@
+<pre>
+<h3> [DEBUG] from src/dllist.c:101: dllist_ctor() </h3>
+capacity: 5
+size: 0
+data[0x7c2bb53e0040]:      0     0     0     0     0 
+next[0x7c3bb53e0050]:      0     2     3     4     0 
+prev[0x7c3bb53e0090]:      0    -1    -1    -1    -1 
+
+<img src=img/0.svg width=500em
+</pre>
+<pre>
+<h3> [DEBUG] from src/dllist.c:221: dllist_insert_after() </h3>
+capacity: 5
+size: 1
+data[0x7c2bb53e0040]:      0    10     0     0     0 
+next[0x7c3bb53e0050]:      1     0     3     4     0 
+prev[0x7c3bb53e0090]:      1     0    -1    -1    -1 
+
+<img src=img/1.svg width=500em
+</pre>
+<pre>
+<h3> [DEBUG] from src/dllist.c:221: dllist_insert_after() </h3>
+capacity: 5
+size: 2
+data[0x7c2bb53e0040]:      0    10    10     0     0 
+next[0x7c3bb53e0050]:      2     0     1     4     0 
+prev[0x7c3bb53e0090]:      1     2     0    -1    -1 
+
+<img src=img/2.svg width=500em
+</pre>
+<pre>
+<h3> [DEBUG] from src/dllist.c:221: dllist_insert_after() </h3>
+capacity: 5
+size: 3
+data[0x7c2bb53e0040]:      0    10    10    10     0 
+next[0x7c3bb53e0050]:      3     0     1     2     0 
+prev[0x7c3bb53e0090]:      1     2     3     0    -1 
+
+<img src=img/3.svg width=500em
+</pre>
+<pre>
+<h3 style="color:red;"> [ERROR] from src/dllist.c:186: dllist_insert_after() </h3>
+<font color="red"> err: link is broken </font>
+capacity: 5
+size: 3
+data[0x7c2bb53e0040]:      0    10    10    10     0 
+next[0x7c3bb53e0050]:      3     0  1000     2     0 
+prev[0x7c3bb53e0090]:      1     2     3     0    -1 
+
+<img src=img/4.svg width=500em
+</pre>

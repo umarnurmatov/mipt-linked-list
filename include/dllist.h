@@ -48,7 +48,7 @@ typedef struct dllist_t
 
 } dllist_t;
 
-dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty);
+dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty, const char* log_filename);
 
 void dllist_dtor(dllist_t* dllist);
 
