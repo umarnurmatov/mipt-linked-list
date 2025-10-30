@@ -1,5 +1,6 @@
 #include "dllist.h"
 
+#include <assert.h>
 #include <memory.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,7 +24,10 @@
 #define DLLIST_ASSERT_OK_(dllist)                    \
     {                                                \
         dllist_err_t err = dllist_verify_(dllist);   \
-        utils_assert(err == DLLIST_NONE);            \
+        if(err != DLLIST_NONE) {                     \
+            DLLIST_DUMP_(dllist, err);               \
+            utils_assert(err == DLLIST_NONE);        \
+        }                                            \
     }
 
 #define DLLIST_VERIFY_OR_RETURN_(dllist, err)   \
@@ -45,9 +49,11 @@
 
 #endif // _DEBUG
 
-static const dllist_data_t DLLIST_NULL_ = 0;
+static const ssize_t DLLIST_NULL_ = 0;
 
-static const ssize_t DLLIST_CPCTY_THREASHOLD_ = 16;
+static const ssize_t DLLIST_NONE_ = -1;
+
+static const ssize_t DLLIST_CPCTY_THREASHOLD_ = 5;
 
 static dllist_err_t dllist_realloc_arr_(void** ptr, ssize_t nmemb, size_t tsize);
 
@@ -142,7 +148,7 @@ static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty)
     
     memset(
         dllist->data + dllist->cpcty, 
-        0, 
+        DLLIST_NULL_, 
         sizeof(dllist->data[0]) * (size_t)(nw_cpcty - dllist->cpcty)
     );
 
@@ -166,7 +172,7 @@ static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty)
     
     memset(
         dllist->prev + dllist->cpcty, 
-        0, 
+        DLLIST_NONE_, 
         sizeof(dllist->prev[0]) * (size_t)(nw_cpcty - dllist->cpcty)
     );
 
@@ -317,7 +323,7 @@ ssize_t dllist_end(dllist_t* dllist)
 #define CLR_BLUE_LIGHT_  "\"#B0B0FF\""
 
 #define CLR_RED_BOLD_    "\"#FF0000\""
-#define CLR_GREEN_BOLD_  "\"#00FF00\""
+#define CLR_GREEN_BOLD_  "\"#0ADF0A\""
 #define CLR_BLUE_BOLD_   "\"#0000FF\""
 
 void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* filename, int line, const char* funcname)
@@ -328,7 +334,7 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* fil
     utils_log_fprintf("<pre>\n"); 
     if(err != DLLIST_NONE) {
         utils_log_fprintf("<h3 style=\"color:red;\"> [ERROR] from %s:%d: %s() </h3>\n", filename, line, funcname);
-        utils_log_fprintf("err: %s\n", dllist_strerr_(err));
+        utils_log_fprintf("<font color=\"red\"> err: %s </font>\n", dllist_strerr_(err));
     }
     else
         utils_log_fprintf("<h3> [DEBUG] from %s:%d: %s() </h3>\n", filename, line, funcname);
@@ -377,16 +383,28 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
 {
     FILE* file = open_file(LOG_DIR "/" GRAPHVIZ_FNAME_ ".txt", "w");
 
-    fprintf(file, "digraph {\n rankdir=LR;\nsplines=ortho;\n"); 
-    fprintf(file, "nodesep=0.9;\nranksep=0.75;\nnode [fontname=\"Fira Mono\"];\n");
+    if(!file)
+        exit(EXIT_FAILURE);
+
+    fprintf(file, "strict digraph {\n rankdir=LR;\nsplines=ortho;\n"); 
+    fprintf(file, "nodesep=0.9;\nranksep=0.75;\n");
+    fprintf(
+        file, 
+        "node [fontname=\"Fira Mono\","
+        "color=" CLR_RED_BOLD_","
+        "style=\"filled\","
+        "shape=tripleoctagon,"
+        "fillcolor=" CLR_RED_LIGHT_ ","
+        "];\n"
+        );
 
     fprintf(
         file,
-        "node_%d[shape=record,"
-        "label=\"data: %d | { prev: %ld | next: %ld } \","
-        "color=" CLR_RED_BOLD_ ","
+        "node_%ld[shape=record,"
+        "label=\"ind: NULL | data: %d | { prev: %ld | next: %ld } \","
+        "color=" CLR_BLUE_BOLD_ ","
         "style=\"filled,bold,rounded\","
-        "fillcolor=" CLR_RED_LIGHT_ "];\n",
+        "fillcolor=" CLR_BLUE_LIGHT_ "];\n",
         DLLIST_NULL_,
         dllist->data[DLLIST_NULL_],
         dllist->prev[DLLIST_NULL_],
@@ -394,16 +412,35 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
     );
 
     for(ssize_t node_ind = DLLIST_NULL_ + 1; node_ind < dllist->cpcty; ++node_ind) {
-        fprintf(
-            file,
-            "node_%ld[shape=record,"
-            "label=\" data: %d | { prev: %ld | next: %ld } \","
-            "constraint=false];\n",  
-            node_ind,
-            dllist->data[node_ind],
-            dllist->prev[node_ind],
-            dllist->next[node_ind]
-        );
+        if(dllist->prev[node_ind] == DLLIST_NONE_)
+            fprintf(
+                file,
+                "node_%ld[shape=record,"
+                "label=\" ind: %ld | data: %d | { prev: %ld | next: %ld } \","
+                "style=\"filled,rounded\","
+                "color=" CLR_GREEN_BOLD_ ","
+                "fillcolor=" CLR_GREEN_LIGHT_","
+                "constraint=false];\n",  
+                node_ind,
+                node_ind,
+                dllist->data[node_ind],
+                dllist->prev[node_ind],
+                dllist->next[node_ind]
+            );
+        else
+            fprintf(
+                file,
+                "node_%ld[shape=record,"
+                "label=\" ind: %ld | data: %d | { prev: %ld | next: %ld } \","
+                "color=black,"
+                "fillcolor=white,"
+                "constraint=false];\n",  
+                node_ind,
+                node_ind,
+                dllist->data[node_ind],
+                dllist->prev[node_ind],
+                dllist->next[node_ind]
+            );
     }
 
     for(ssize_t node_ind = 0; node_ind < dllist->cpcty - 1; ++node_ind) {
@@ -415,46 +452,70 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
         );
     }
     
-    ssize_t prev_ind = dllist->free;
-    ssize_t cur_ind = dllist->next[prev_ind];
-    for( ; prev_ind != DLLIST_NULL_; cur_ind = dllist->next[prev_ind]) {
-        fprintf(
-            file,
-            "node_%ld -> node_%ld [color=" CLR_BLUE_BOLD_ "];\n",
-            prev_ind,
-            cur_ind
-        );
-        prev_ind = cur_ind;
-    }
+    for(ssize_t ind = DLLIST_NULL_; ind < dllist->cpcty; ++ind) {
+        // free
+        if(dllist->prev[ind] == DLLIST_NONE_) {
+            fprintf(
+                file, 
+                "node_%ld -> node_%ld [color=" CLR_GREEN_BOLD_ "];\n", 
+                ind, dllist->next[ind]
+            );
+            continue;
+        }
 
-    prev_ind = DLLIST_NULL_;
-    cur_ind = dllist_begin(dllist);
-    do {
-        if(prev_ind == DLLIST_NULL_ || cur_ind == DLLIST_NULL_)
+        if(dllist->next[ind] < dllist->cpcty) {
+            if(dllist->prev[dllist->next[ind]] == ind)
+                fprintf(
+                    file, 
+                    "node_%ld -> node_%ld [dir=both];\n", 
+                    ind, dllist->next[ind]
+                );
+            else
+                fprintf(
+                    file, 
+                    "node_%ld -> node_%ld [color=" CLR_BLUE_BOLD_ "];\n", 
+                    ind, dllist->next[ind]
+                );
+        }
+        else {
             fprintf(
-                file,
-                "node_%ld -> node_%ld [color=" CLR_RED_BOLD_ "];\n",
-                prev_ind,
-                cur_ind
+                file, 
+                "node_%ld -> node_%ld [color=" CLR_RED_BOLD_ "];\n", 
+                ind, dllist->next[ind]
             );
-        else
+        }
+
+        if(dllist->prev[ind] < dllist->cpcty) {
+            if(dllist->next[dllist->prev[ind]] == ind)
+                fprintf(
+                    file, 
+                    "node_%ld -> node_%ld [dir=both];\n", 
+                    dllist->prev[ind], ind
+                );
+            else
+                fprintf(
+                    file, 
+                    "node_%ld -> node_%ld [color=" CLR_BLUE_BOLD_ "];\n", 
+                    dllist->prev[ind], ind
+                );
+        }
+        else {
             fprintf(
-                file,
-                "node_%ld -> node_%ld [];\n",
-                prev_ind,
-                cur_ind
+                file, 
+                "node_%ld -> node_%ld [color=" CLR_RED_BOLD_ "];\n", 
+                dllist->prev[ind], ind
             );
-        prev_ind = cur_ind;
-        cur_ind = dllist->next[prev_ind];
-    } while(prev_ind != DLLIST_NULL_);
+        }
+
+    }
 
     fprintf(
         file,
-        "node_free [label=free,color=" CLR_BLUE_BOLD_ ","
+        "node_free [label=free,color=" CLR_GREEN_BOLD_ ","
         "shape=rectangle,"
         "style=\"filled,rounded\","
-        "fillcolor=" CLR_BLUE_LIGHT_ "];\n"
-        "node_free -> node_%ld [color=" CLR_BLUE_BOLD_ "]\n",
+        "fillcolor=" CLR_GREEN_LIGHT_ "];\n"
+        "node_free -> node_%ld [color=" CLR_GREEN_BOLD_ "]\n",
         dllist->free
     );
 
@@ -487,6 +548,13 @@ static dllist_err_t dllist_verify_(dllist_t* dllist)
     else if(!dllist->prev)
         return DLLIST_FIELD_NULLPTR;
 
+    for(ssize_t i = 0; i < dllist->cpcty; ++i) {
+        if(dllist->prev[i] > dllist->cpcty)
+            return DLLIST_BROKEN_LINK;
+        if(dllist->next[i] > dllist->cpcty)
+            return DLLIST_BROKEN_LINK;
+    }
+
     return DLLIST_NONE;
 }
 
@@ -501,6 +569,8 @@ static const char* dllist_strerr_(dllist_err_t err)
             return "struct field is nullptr";
         case DLLIST_OUT_OF_BOUND:
             return "index out of bound";
+        case DLLIST_BROKEN_LINK:
+            return "link is broken";
         case DLLIST_NULLPTR:
             return "nullptr";
         default:

@@ -30,7 +30,8 @@ typedef enum dllist_err_t
     DLLIST_ALLOC_FAIL,
     DLLIST_FIELD_NULLPTR,
     DLLIST_OUT_OF_BOUND,
-    DLLIST_NULLPTR
+    DLLIST_NULLPTR,
+    DLLIST_BROKEN_LINK
 } dllist_err_t;
 
 typedef struct dllist_t
