@@ -12,9 +12,6 @@
 
 #ifdef _DEBUG
 
-#define DLLIST_LOG_FILENAME_ "logfile.html"
-#define GRAPHVIZ_IMG_FNAME_PREF_LEN_ 10
-
 #define DLLIST_DUMP_(dllist, err) \
     dllist_dump_(dllist, err, NULL, __FILE__, __LINE__, __func__); 
 
@@ -64,7 +61,7 @@ static dllist_err_t dllist_realloc_(dllist_t* dllist, ssize_t nw_cpcty);
 
 static dllist_err_t dllist_verify_(dllist_t* dllist);
 
-void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_LEN_]);
+char* dllist_dump_graphviz_(dllist_t* dllist);
 
 void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* filename, int line, const char* funcname);
 
@@ -73,12 +70,13 @@ static const char* dllist_strerr_(dllist_err_t err);
 #endif // _DEBUG
 
 
-dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty, const char* log_filename)
+dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty, char* log_filename)
 {
     utils_assert(dllist);
     utils_assert(init_cpcty > 0);
 
     IF_DEBUG(
+        utils_assert(log_filename);
         utils_init_log_file(log_filename, LOG_DIR);
     )
 
@@ -328,9 +326,6 @@ ssize_t dllist_end(dllist_t* dllist)
 
 void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* filename, int line, const char* funcname)
 {
-    static char fpref[GRAPHVIZ_IMG_FNAME_PREF_LEN_] = "";
-    static unsigned int fpref_cnt = 0;
-
     utils_log_fprintf("<pre>\n"); 
     if(err != DLLIST_NONE) {
         utils_log_fprintf("<h3 style=\"color:red;\"> [ERROR] from %s:%d: %s() </h3>\n", filename, line, funcname);
@@ -367,11 +362,14 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* fil
 
         utils_log_fprintf("\n");
 
-        sprintf(fpref, "%u", fpref_cnt++);
+        char* img_pref = dllist_dump_graphviz_(dllist);
 
-        dllist_dump_graphviz_(dllist, fpref);
+        utils_log_fprintf(
+            "\n<img src=" IMG_DIR "/%s.svg width=500em\n", 
+            strrchr(img_pref, '/') + 1
+        );
 
-        utils_log_fprintf("\n<img src=" IMG_DIR "/%s.svg width=500em\n", fpref);
+        NFREE(img_pref);
 
     } END;
 
@@ -379,7 +377,7 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* fil
 
 }
 
-void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_LEN_])
+char* dllist_dump_graphviz_(dllist_t* dllist)
 {
     FILE* file = open_file(LOG_DIR "/" GRAPHVIZ_FNAME_ ".txt", "w");
 
@@ -511,7 +509,6 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
                 dllist->prev[ind], ind
             );
         }
-
     }
 
     fprintf(
@@ -528,15 +525,22 @@ void dllist_dump_graphviz_(dllist_t* dllist, char fpref[GRAPHVIZ_IMG_FNAME_PREF_
 
     fclose(file);
 
-    static char strbuf[GRAPHVIZ_CMD_LEN_ + GRAPHVIZ_IMG_FNAME_PREF_LEN_]= "";
+    
+    create_dir(LOG_DIR "/" IMG_DIR);
+    char* img_tmpnam = tempnam(LOG_DIR "/" IMG_DIR, "img-");
+    utils_assert(img_tmpnam);
+
+    static char strbuf[GRAPHVIZ_CMD_LEN_]= "";
 
     sprintf(
         strbuf, 
-        "dot -T svg -o" LOG_DIR "/" IMG_DIR "/%s.svg " LOG_DIR "/" GRAPHVIZ_FNAME_ ".txt", fpref
+        "dot -T svg -o %s.svg " LOG_DIR "/" GRAPHVIZ_FNAME_ ".txt", 
+        img_tmpnam
     );
 
     system(strbuf);
 
+    return img_tmpnam;
 }
 
 static dllist_err_t dllist_verify_(dllist_t* dllist)
@@ -555,10 +559,16 @@ static dllist_err_t dllist_verify_(dllist_t* dllist)
 
     for(ssize_t i = 0; i < dllist->cpcty; ++i) {
         if(dllist->prev[i] > dllist->cpcty)
-            return DLLIST_BROKEN_LINK;
+            return DLLIST_BAD_LINK;
         if(dllist->next[i] > dllist->cpcty)
-            return DLLIST_BROKEN_LINK;
+            return DLLIST_BAD_LINK;
     }
+    
+    // ssize_t ind = DLLIST_NULL_;
+    // do {
+    //
+    //     ind = dllist->next[ind];
+    // }
 
     return DLLIST_NONE;
 }
@@ -574,8 +584,10 @@ static const char* dllist_strerr_(dllist_err_t err)
             return "struct field is nullptr";
         case DLLIST_OUT_OF_BOUND:
             return "index out of bound";
-        case DLLIST_BROKEN_LINK:
-            return "link is broken";
+        case DLLIST_LOOP_BROKEN:
+            return "loop is broken";
+        case DLLIST_BAD_LINK:
+            return "bad link";
         case DLLIST_NULLPTR:
             return "nullptr";
         default:

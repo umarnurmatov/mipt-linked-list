@@ -12,12 +12,12 @@ DEPS := $(patsubst %.o,%.d,$(OBJS))
 
 # LIBRARIES
 LIBCUTILS_INCLUDE_PATH := ../cutils/include
-LIBCUTILS              := ../cutils/build/src/libcutils.a
+LIBCUTILS              := -L../cutils/build/ -lcutils
 
 # COMPILER CONFIG
 CC := g++
 
-CPPFLAGS_DEBUG := -D _DEBUG -ggdb3 -g
+CPPFLAGS_DEBUG := -D _DEBUG -ggdb3
 
 CPPFLAGS_ASAN := -fcheck-new -fsized-deallocation -fstack-protector -fstrict-overflow -flto-odr-type-merging -fno-omit-frame-pointer -pie -fPIE -fsanitize=address,alignment,bool,bounds,enum,float-cast-overflow,float-divide-by-zero,integer-divide-by-zero,leak,nonnull-attribute,null,object-size,return,returns-nonnull-attribute,shift,signed-integer-overflow,undefined,unreachable,vla-bound,vptr
 
@@ -25,31 +25,42 @@ CPPFLAGS_WARNINGS := -Wall -Wextra -Weffc++ -Waggressive-loop-optimizations -Wc+
 
 CPPFLAGS_DEFINES = -DLOG_DIR='"log"' -DIMG_DIR='"img"'
 
-CPPFLAGS := -MMD -MP $(addprefix -I,$(INCLUDE_DIRS)) $(addprefix -I,$(LIBCUTILS_INCLUDE_PATH)) -Wl,--unresolved-symbols=ignore-in-object-files  -std=c++17 -O0 $(CPPFLAGS_WARNINGS) $(CPPFLAGS_ASAN) $(CPPFLAGS_DEBUG) $(CPPFLAGS_DEFINES)
+CPPFLAGS := -MMD -MP $(addprefix -I,$(INCLUDE_DIRS)) $(addprefix -I,$(LIBCUTILS_INCLUDE_PATH)) -std=c++17 -O0 $(CPPFLAGS_WARNINGS) $(CPPFLAGS_ASAN) $(CPPFLAGS_DEBUG) $(CPPFLAGS_DEFINES)
 
 # PROGRAM
 $(BUILD_DIR)/$(EXECUTABLE): $(OBJS)
 	@echo -n Linking $@...
-	@$(CC) $(CPPFLAGS) $(OBJS) $(LIBCUTILS) -o $@
+	@$(CC) $(CPPFLAGS) -o $@ $(OBJS) $(LIBCUTILS) 
 	@echo done
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo Building $@...
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(CPPFLAGS) -c $< -o $@
+	@$(CC) $(CPPFLAGS) -c -o $@ $< $(LIBCUTILS)
 
 # TESTS
 include $(TEST_DIR)/test_sources.make
 TEST_EXECS := $(patsubst %.c,$(BUILD_DIR)/%.test,$(TEST_SOURCES))
 
-prefix := "\#\#\#\#\#\# [TEST]"
+test: prefix := "\#\#\#\#\#\# [TEST]"
 test: $(TEST_EXECS)
-	$(foreach exec,$(TEST_EXECS),echo "$(prefix) Running $(notdir $(exec))..."; ./$(exec) --log=$(patsubst %.test,%.html,$(notdir $(exec))); echo -e "$(prefix) Finished $(notdir $(exec))\n";)
+	@$(foreach														 \
+		exec,														 \
+		$(TEST_EXECS),echo "$(prefix) Running $(notdir $(exec))..."; \
+		./$(exec) --log=$(patsubst %.test,%.html,$(notdir $(exec))); \
+		echo -e "$(prefix) Finished $(notdir $(exec))\n";			 \
+	)
 
-$(BUILD_DIR)/%.test: $(TEST_DIR)/%.c $(OBJS)
+$(BUILD_DIR)/%.test: $(BUILD_DIR)/%.test.o $(OBJS)
 	@echo -n Building test $@...
-	@$(CC) $(CPPFLAGS) $(OBJS) $(LIBCUTILS) -o $@ $<
+	@$(CC) $(CPPFLAGS) -o $@ $^ $(LIBCUTILS)
 	@echo done
+
+$(BUILD_DIR)/%.test.o: $(TEST_DIR)/%.c
+	@echo Building $@...
+	@mkdir -p $(BUILD_DIR)
+	@$(CC) $(CPPFLAGS) -c $< -o $@ $(LIBCUTILS)
+	
 
 .PHONY: clean
 clean:

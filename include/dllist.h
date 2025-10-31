@@ -31,7 +31,8 @@ typedef enum dllist_err_t
     DLLIST_FIELD_NULLPTR,
     DLLIST_OUT_OF_BOUND,
     DLLIST_NULLPTR,
-    DLLIST_BROKEN_LINK
+    DLLIST_LOOP_BROKEN,
+    DLLIST_BAD_LINK
 } dllist_err_t;
 
 typedef struct dllist_t
@@ -48,7 +49,7 @@ typedef struct dllist_t
 
 } dllist_t;
 
-dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty, const char* log_filename);
+dllist_err_t dllist_ctor(dllist_t* dllist, ssize_t init_cpcty, char* log_filename);
 
 void dllist_dtor(dllist_t* dllist);
 

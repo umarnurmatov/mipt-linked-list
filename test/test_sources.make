@@ -1,1 +1,1 @@
-TEST_SOURCES := basics.c
+TEST_SOURCES := bad_link.c broken_cycle.c
