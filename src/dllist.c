@@ -591,14 +591,23 @@ static dllist_err_t dllist_verify_(dllist_t* dllist)
     if(!dllist)
         return DLLIST_NULLPTR;
 
-    else if(!dllist->next)
+    if(!dllist->next)
         return DLLIST_FIELD_NULLPTR;
 
-    else if(!dllist->data)
+    if(!dllist->data)
         return DLLIST_FIELD_NULLPTR;
 
-    else if(!dllist->prev)
+    if(!dllist->prev)
         return DLLIST_FIELD_NULLPTR;
+
+    if(dllist->size < 0)
+        return DLLIST_BAD_SIZE;
+
+    if(dllist->cpcty < 0)
+        return DLLIST_BAD_CPCTY;
+
+    if(dllist->size > dllist->cpcty)
+        return DLLIST_SIZE_EXCEED_CPCTY;
 
     for(ssize_t i = 0; i < dllist->cpcty; ++i) {
         if(dllist->prev[i] > dllist->cpcty)
@@ -606,12 +615,33 @@ static dllist_err_t dllist_verify_(dllist_t* dllist)
         if(dllist->next[i] > dllist->cpcty)
             return DLLIST_BAD_LINK;
     }
-    
-    // ssize_t ind = DLLIST_NULL_;
-    // do {
-    //
-    //     ind = dllist->next[ind];
-    // }
+
+    char* visited = (char*)calloc((size_t)dllist->cpcty, sizeof(char));
+    ssize_t visited_size = 0;
+    ssize_t ind = DLLIST_NULL_;
+
+    do {
+        if(visited[ind]) {
+            NFREE(visited);
+            return DLLIST_INFINIT_NEXT_LOOP;
+        }
+        
+        if(visited_size++ > dllist->size) {
+            NFREE(visited);
+            return DLLIST_INFINIT_NEXT_LOOP;
+        }
+
+        visited[ind] = 1;
+        ind = dllist->next[ind];
+
+    } while(ind != DLLIST_NULL_);
+
+    if(visited_size < dllist->size + 1) {
+        NFREE(visited);
+        return DLLIST_BROKEN_NEXT_LOOP;
+    }
+
+    NFREE(visited);
 
     return DLLIST_NONE;
 }
@@ -627,12 +657,20 @@ static const char* dllist_strerr_(dllist_err_t err)
             return "struct field is nullptr";
         case DLLIST_OUT_OF_BOUND:
             return "index out of bound";
-        case DLLIST_LOOP_BROKEN:
+        case DLLIST_BROKEN_NEXT_LOOP:
             return "loop is broken";
+        case DLLIST_INFINIT_NEXT_LOOP:
+            return "infinite loop";
         case DLLIST_BAD_LINK:
             return "bad link";
         case DLLIST_NULLPTR:
             return "nullptr";
+        case DLLIST_BAD_SIZE:
+            return "bad size";
+        case DLLIST_BAD_CPCTY:
+            return "bad capacity";
+        case DLLIST_SIZE_EXCEED_CPCTY:
+            return "size exceeds capacity";
         default:
             return "unknown";
     }
