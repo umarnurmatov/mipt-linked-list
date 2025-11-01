@@ -1,3 +1,4 @@
+
 #include "dllist.h"
 #include "utils.h"
 #include "optutils.h"
@@ -19,17 +20,19 @@ int main(int argc, char* argv[])
         DLLIST_VERIFY(dllist_ctor(&list, 2, long_opts[0].arg));
 
         DLLIST_VERIFY(dllist_insert_after(&list, 10, 0));
-        DLLIST_VERIFY(dllist_insert_after(&list, 10, 1));
-        DLLIST_VERIFY(dllist_insert_after(&list, 10, 2));
+        DLLIST_VERIFY(dllist_insert_after(&list, 20, 1));
+        DLLIST_VERIFY(dllist_insert_after(&list, 30, 2));
 
-        list.next[2] = 1000;
+        list.next[3] = 1;
 
-        DLLIST_VERIFY(dllist_insert_after(&list, 10, 3));
+        DLLIST_VERIFY(dllist_insert_after(&list, 30, 2));
 
         dllist_dtor(&list);
 
         return EXIT_SUCCESS;
     } END;
+
+#undef DLLIST_VERIFY
     
     dllist_dtor(&list);
     return EXIT_FAILURE;

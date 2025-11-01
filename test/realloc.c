@@ -19,17 +19,23 @@ int main(int argc, char* argv[])
         DLLIST_VERIFY(dllist_ctor(&list, 2, long_opts[0].arg));
 
         DLLIST_VERIFY(dllist_insert_after(&list, 10, 0));
-        DLLIST_VERIFY(dllist_insert_after(&list, 10, 1));
-        DLLIST_VERIFY(dllist_insert_after(&list, 10, 2));
+        DLLIST_VERIFY(dllist_insert_after(&list, 20, 1));
+        DLLIST_VERIFY(dllist_insert_after(&list, 30, 2));
+        DLLIST_VERIFY(dllist_insert_after(&list, 40, 3));
+        DLLIST_VERIFY(dllist_insert_after(&list, 50, 4));
+        DLLIST_VERIFY(dllist_insert_after(&list, 60, 5));
 
-        list.next[2] = 1000;
+        DLLIST_VERIFY(dllist_delete_at(&list, 3));
+        DLLIST_VERIFY(dllist_delete_at(&list, 2));
 
-        DLLIST_VERIFY(dllist_insert_after(&list, 10, 3));
+        DLLIST_VERIFY(dllist_linearize(&list));
 
         dllist_dtor(&list);
 
         return EXIT_SUCCESS;
     } END;
+
+#undef DLLIST_VERIFY
     
     dllist_dtor(&list);
     return EXIT_FAILURE;
