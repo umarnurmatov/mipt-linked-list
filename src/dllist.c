@@ -394,7 +394,7 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* fil
         utils_log_fprintf("\n</tr>\n");
 
         utils_log_fprintf("\n<tr>\n");
-        utils_log_fprintf("\n<th>next[%p]</th>", dllist->prev);
+        utils_log_fprintf("\n<th>prev[%p]</th>", dllist->prev);
         for(ssize_t i = 0; i < dllist->cpcty; ++i)
             utils_log_fprintf("<td>%ld</td>", dllist->prev[i]);
         utils_log_fprintf("\n</tr>\n");
@@ -427,7 +427,7 @@ char* dllist_dump_graphviz_(dllist_t* dllist)
     if(!file)
         exit(EXIT_FAILURE);
 
-    fprintf(file, "strict digraph {\n rankdir=LR;\nsplines=ortho;\n"); 
+    fprintf(file, "digraph {\n rankdir=LR;\nsplines=ortho;\n"); 
     fprintf(file, "nodesep=0.9;\nranksep=0.75;\n");
     fprintf(
         file, 
@@ -472,17 +472,14 @@ char* dllist_dump_graphviz_(dllist_t* dllist)
             fprintf(
                 file,
                 "node_%ld[shape=record,"
-                "label=\" ind: %ld %s | data: %d | { prev: %ld | next: %ld } \","
+                "label=\" ind: %ld %s %s | data: %d | { prev: %ld | next: %ld } \","
                 "color=black,"
                 "fillcolor=white,"
                 "constraint=false];\n",  
                 node_ind,
                 node_ind,
-                node_ind == dllist->next[DLLIST_NULL_] 
-                    ? "(BEGIN)" 
-                    : node_ind == dllist->prev[DLLIST_NULL_] 
-                        ? "(END)" 
-                        : "",
+                node_ind == dllist->next[DLLIST_NULL_] ? "(BEGIN)" : "",
+                node_ind == dllist->prev[DLLIST_NULL_] ? "(END)" : "",
                 dllist->data[node_ind],
                 dllist->prev[node_ind],
                 dllist->next[node_ind]
@@ -497,6 +494,9 @@ char* dllist_dump_graphviz_(dllist_t* dllist)
             node_ind + 1
         );
     }
+
+    char* bidir_next_nodes = (char*)calloc((size_t)dllist->cpcty, sizeof(char));
+    char* bidir_prev_nodes = (char*)calloc((size_t)dllist->cpcty, sizeof(char));
     
     for(ssize_t ind = DLLIST_NULL_; ind < dllist->cpcty; ++ind) {
         // free
@@ -510,12 +510,16 @@ char* dllist_dump_graphviz_(dllist_t* dllist)
         }
 
         if(dllist->next[ind] < dllist->cpcty) {
-            if(dllist->prev[dllist->next[ind]] == ind)
-                fprintf(
-                    file, 
-                    "node_%ld -> node_%ld [dir=both];\n", 
-                    ind, dllist->next[ind]
-                );
+            if(dllist->prev[dllist->next[ind]] == ind) {
+                if(!bidir_next_nodes[ind]) {
+                    fprintf(
+                        file, 
+                        "node_%ld -> node_%ld [dir=both];\n", 
+                        ind, dllist->next[ind]
+                    );
+                    bidir_prev_nodes[dllist->next[ind]] = 1;
+                }
+            }
             else
                 fprintf(
                     file, 
@@ -532,12 +536,16 @@ char* dllist_dump_graphviz_(dllist_t* dllist)
         }
 
         if(dllist->prev[ind] < dllist->cpcty) {
-            if(dllist->next[dllist->prev[ind]] == ind)
-                fprintf(
-                    file, 
-                    "node_%ld -> node_%ld [dir=both];\n", 
-                    dllist->prev[ind], ind
-                );
+            if(dllist->next[dllist->prev[ind]] == ind) {
+                if(!bidir_prev_nodes[ind]) {
+                    fprintf(
+                        file, 
+                        "node_%ld -> node_%ld [dir=both];\n", 
+                        dllist->prev[ind], ind
+                    );
+                    bidir_next_nodes[dllist->prev[ind]] = 1;
+                }
+            }
             else
                 fprintf(
                     file, 
@@ -553,6 +561,9 @@ char* dllist_dump_graphviz_(dllist_t* dllist)
             );
         }
     }
+
+    NFREE(bidir_next_nodes);
+    NFREE(bidir_prev_nodes);
 
     fprintf(
         file,
