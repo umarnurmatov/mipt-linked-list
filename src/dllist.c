@@ -1,6 +1,7 @@
 #include "dllist.h"
 
 #include <assert.h>
+#include <ctime>
 #include <memory.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -321,18 +322,39 @@ ssize_t dllist_end(dllist_t* dllist)
 #define CLR_BLUE_LIGHT_  "\"#B0B0FF\""
 
 #define CLR_RED_BOLD_    "\"#FF0000\""
-#define CLR_GREEN_BOLD_  "\"#0ADF0A\""
+#define CLR_GREEN_BOLD_  "\"#03c03c\""
 #define CLR_BLUE_BOLD_   "\"#0000FF\""
 
 void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* filename, int line, const char* funcname)
 {
+    utils_log_fprintf(
+        "<style>"
+        "table {"
+          "border-collapse: collapse;"
+          "border: 1px solid;"
+          "font-size: 0.9em;"
+        "}"
+        "th,"
+        "td {"
+          "border: 1px solid rgb(160 160 160);"
+          "padding: 8px 10px;"
+        "}"
+        "</style>\n"
+    );
+
     utils_log_fprintf("<pre>\n"); 
+
+    time_t cur_time = time(NULL);
+    struct tm* iso_time = localtime(&cur_time);
+    char time_buff[100];
+    strftime(time_buff, sizeof(time_buff), "%F %T", iso_time);
+
     if(err != DLLIST_NONE) {
-        utils_log_fprintf("<h3 style=\"color:red;\"> [ERROR] from %s:%d: %s() </h3>\n", filename, line, funcname);
-        utils_log_fprintf("<font color=\"red\"> err: %s </font>\n", dllist_strerr_(err));
+        utils_log_fprintf("<h3 style=\"color:red;\">[ERROR] [%s] from %s:%d: %s() </h3>", time_buff, filename, line, funcname);
+        utils_log_fprintf("<h4><font color=\"red\">err: %s </font></h4>", dllist_strerr_(err));
     }
     else
-        utils_log_fprintf("<h3> [DEBUG] from %s:%d: %s() </h3>\n", filename, line, funcname);
+        utils_log_fprintf("<h3>[DEBUG] [%s] from %s:%d: %s() </h3>\n", time_buff, filename, line, funcname);
 
     if(msg)
         utils_log_fprintf("what: %s\n", msg);
@@ -341,39 +363,60 @@ void dllist_dump_(dllist_t* dllist, dllist_err_t err, char* msg, const char* fil
         if(err == DLLIST_NULLPTR) 
             GOTO_END;
 
-        utils_log_fprintf("capacity: %ld\n", dllist->cpcty);
+        utils_log_fprintf("\n<table>\n");
 
-        utils_log_fprintf("size: %ld", dllist->size);
+        utils_log_fprintf("<tr><th>capacity</th><td>%ld</td></tr>\n", dllist->cpcty);
+        utils_log_fprintf("<tr><th>size</th><td>%ld</td></tr>\n", dllist->size);
+
+        utils_log_fprintf("\n</table>\n");
 
         if(err == DLLIST_FIELD_NULLPTR)
             GOTO_END;
-        
-        utils_log_fprintf("\ndata[%p]:  ", dllist->data);
-        for(ssize_t i = 0; i < dllist->cpcty; ++i)
-            utils_log_fprintf("%5d ", dllist->data[i]);
 
-        utils_log_fprintf("\nnext[%p]:  ", dllist->next);
-        for(ssize_t i = 0; i < dllist->cpcty; ++i)
-            utils_log_fprintf("%5ld ", dllist->next[i]);
+        utils_log_fprintf("\n<table>\n");
 
-        utils_log_fprintf("\nprev[%p]:  ", dllist->prev);
+        utils_log_fprintf("\n<tr>\n");
+        utils_log_fprintf("\n<th>index</th>");
         for(ssize_t i = 0; i < dllist->cpcty; ++i)
-            utils_log_fprintf("%5ld ", dllist->prev[i]);
+            utils_log_fprintf("<td>%ld</td>", i);
+        utils_log_fprintf("\n</tr>\n");
 
+        utils_log_fprintf("\n<tr>\n");
+        utils_log_fprintf("\n<th>data[%p]</th>", dllist->data);
+        for(ssize_t i = 0; i < dllist->cpcty; ++i)
+            utils_log_fprintf("<td>%d</td>", dllist->data[i]);
+        utils_log_fprintf("\n</tr>\n");
+
+        utils_log_fprintf("\n<tr>\n");
+        utils_log_fprintf("\n<th>next[%p]</th>", dllist->next);
+        for(ssize_t i = 0; i < dllist->cpcty; ++i)
+            utils_log_fprintf("<td>%ld</td>", dllist->next[i]);
+        utils_log_fprintf("\n</tr>\n");
+
+        utils_log_fprintf("\n<tr>\n");
+        utils_log_fprintf("\n<th>next[%p]</th>", dllist->prev);
+        for(ssize_t i = 0; i < dllist->cpcty; ++i)
+            utils_log_fprintf("<td>%ld</td>", dllist->prev[i]);
+        utils_log_fprintf("\n</tr>\n");
+
+
+        utils_log_fprintf("\n</table>\n");
         utils_log_fprintf("\n");
 
         char* img_pref = dllist_dump_graphviz_(dllist);
 
         utils_log_fprintf(
-            "\n<img src=" IMG_DIR "/%s.svg width=500em\n", 
+            "\n<img src=" IMG_DIR "/%s.svg width=1000em\n", 
             strrchr(img_pref, '/') + 1
         );
+
+        utils_log_fprintf("</pre>\n\n");
+
+        utils_log_fprintf("<hr color=\"black\" />\n");
 
         NFREE(img_pref);
 
     } END;
-
-    utils_log_fprintf("</pre>\n");
 
 }
 
