@@ -61,6 +61,8 @@ dllist_err_t dllist_insert_after(dllist_t* dllist, dllist_data_t val, ssize_t af
 
 dllist_err_t dllist_delete_at(dllist_t* dllist, ssize_t at);
 
+dllist_err_t dllist_linearize(dllist_t* dllist);
+
 ssize_t dllist_next(dllist_t* dllist, ssize_t after);
 
 ssize_t dllist_prev(dllist_t* dllist, ssize_t before);

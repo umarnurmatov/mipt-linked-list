@@ -255,6 +255,54 @@ dllist_err_t dllist_delete_at(dllist_t* dllist, ssize_t at)
     return DLLIST_NONE;
 }
 
+dllist_err_t dllist_linearize(dllist_t* dllist)
+{
+    DLLIST_ASSERT_OK_(dllist);
+
+    dllist_err_t err;
+
+    dllist_data_t* data_tmp = NULL;
+    ssize_t* next_tmp = NULL;
+    ssize_t* prev_tmp = NULL;
+
+    err = dllist_realloc_arr_((void**)&data_tmp, dllist->size + 1, sizeof(data_tmp[0]));
+    DLLIST_VERIFY_OR_RETURN_(dllist, err);
+
+    err = dllist_realloc_arr_((void**)&next_tmp, dllist->size + 1, sizeof(next_tmp[0]));
+    DLLIST_VERIFY_OR_RETURN_(dllist, err);
+
+    err = dllist_realloc_arr_((void**)&prev_tmp, dllist->size + 1, sizeof(prev_tmp[0]));
+    DLLIST_VERIFY_OR_RETURN_(dllist, err);
+
+    ssize_t ind = DLLIST_NULL_;
+    ssize_t cnt = 0;
+    do {
+        data_tmp[cnt] = dllist->data[ind];
+        next_tmp[cnt] = cnt + 1;
+        prev_tmp[cnt] = cnt - 1;
+
+        ind = dllist->next[ind];
+        cnt++;
+    } while(ind != DLLIST_NULL_);
+
+    next_tmp[dllist->size] = DLLIST_NULL_;
+    prev_tmp[DLLIST_NULL_] = dllist->size;
+    
+    NFREE(dllist->data);
+    NFREE(dllist->next);
+    NFREE(dllist->prev);
+
+    dllist->data = data_tmp;
+    dllist->next = next_tmp;
+    dllist->prev = prev_tmp;
+    dllist->cpcty = dllist->size + 1;
+    dllist->free = DLLIST_NULL_;
+
+    DLLIST_DUMP_(dllist, err);
+
+    return DLLIST_NONE;
+}
+
 ssize_t dllist_next(dllist_t* dllist, ssize_t after)
 {
     DLLIST_ASSERT_OK_(dllist);
