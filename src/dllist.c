@@ -246,6 +246,7 @@ dllist_err_t dllist_delete_at(dllist_t* dllist, ssize_t at)
     dllist->prev[dllist->next[at]] = dllist->prev[at];
 
     dllist->next[at] = dllist->free;
+    dllist->prev[at] = DLLIST_NONE_;
     dllist->free     = at;
 
     --dllist->size;
