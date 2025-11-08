@@ -45,6 +45,8 @@
         return err;                            \
     }
 
+#define DLLIST_ASSERT_OK_(dllist)
+
 #endif // _DEBUG
 
 static const ssize_t DLLIST_NULL_ = 0;
@@ -113,7 +115,9 @@ void dllist_dtor(dllist_t* dllist)
     dllist->size = 0;
     dllist->free = 0;
 
-    utils_end_log();
+    IF_DEBUG(
+        utils_end_log();
+    )
 }
 
 static dllist_err_t dllist_realloc_arr_(void** ptr, ssize_t nmemb, size_t tsize)
