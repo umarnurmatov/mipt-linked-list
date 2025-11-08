@@ -70,3 +70,5 @@ log/
 
 # Compile Commands
 compile_commands.json
+bench.json
+out.json
